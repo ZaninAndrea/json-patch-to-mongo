@@ -1,6 +1,6 @@
 # JSON Patches to Mongo
 
-This utility converts JSON patches to MongoDB update queries.
+This utility converts [JSON patches](http://jsonpatch.com/) to MongoDB update queries.
 
 ## Using the package
 
@@ -20,3 +20,7 @@ patches := []byte(`[
 ]`)
 updateQuery, err := ParsePatches(patches)
 ```
+
+## Credits
+
+This is a Go port of the JavaScript library [jsonpatch-to-mongodb](https://github.com/mongodb-js/jsonpatch-to-mongodb).
