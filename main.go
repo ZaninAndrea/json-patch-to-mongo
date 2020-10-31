@@ -53,6 +53,11 @@ func min(a, b int) int {
 
 // ParsePatches accepts the JSON Patches as []byte and returns the equivalent MongoDB update query as bson.M
 func ParsePatches(patches []byte) (bson.M, error) {
+	return ParsePatchesWithPrefix(patches, "")
+}
+
+// ParsePatchesWithPrefix accepts the JSON Patches as []byte and returns the equivalent MongoDB update query as bson.M, all the paths are prepended with the prefix passed
+func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 	// parse patches json
 	var parsedPatches patchesList
 	err := json.Unmarshal(patches, &parsedPatches)
@@ -72,7 +77,7 @@ func ParsePatches(patches []byte) (bson.M, error) {
 			}
 
 			// parse path dividing key of the array and location inside the array
-			path := toDot(patch.Path)
+			path := prefixPath + toDot(patch.Path)
 			parts := strings.Split(path, ".")
 
 			positionPart := ""
