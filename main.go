@@ -1,4 +1,4 @@
-package jsonpatch_mongo
+package jsonpatchtomongo
 
 // code converted from js to golang, the original source is https://github.com/mongodb-js/jsonpatch-to-mongodb
 
@@ -23,7 +23,7 @@ func main() {
 	fmt.Println(ParsePatches(patches))
 }
 
-type Patches []struct {
+type patchesList []struct {
 	Op    string
 	Path  string
 	Value *interface{}
@@ -51,9 +51,10 @@ func min(a, b int) int {
 	return b
 }
 
+// ParsePatches accepts the JSON Patches as []byte and returns the equivalent MongoDB update query as bson.M
 func ParsePatches(patches []byte) (bson.M, error) {
 	// parse patches json
-	var parsedPatches Patches
+	var parsedPatches patchesList
 	err := json.Unmarshal(patches, &parsedPatches)
 	if err != nil {
 		return nil, err

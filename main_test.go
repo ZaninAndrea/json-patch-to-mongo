@@ -1,4 +1,4 @@
-package jsonpatch_mongo
+package jsonpatchtomongo
 
 import (
 	"fmt"
