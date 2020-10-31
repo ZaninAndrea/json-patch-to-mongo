@@ -7,7 +7,7 @@ This utility converts [JSON patches](http://jsonpatch.com/) to MongoDB update qu
 To install the package run
 
 ```
-go get github.com/ZaninAndrea/jsonpatch-to-mongo
+go get github.com/ZaninAndrea/json-patch-to-mongo
 ```
 
 Then you can use the utility simply by passing the JSON Patches as `[]byte` to the `ParsePatches` function
