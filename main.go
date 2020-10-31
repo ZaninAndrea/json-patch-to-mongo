@@ -178,14 +178,14 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 				update["$unset"] = bson.M{}
 			}
 
-			update["$unset"].(bson.M)[toDot(patch.Path)] = 1
+			update["$unset"].(bson.M)[prefixPath+toDot(patch.Path)] = 1
 
 		// parse replace op adding the replaced path to the $set query with the correct value
 		case "replace":
 			if _, ok := update["$set"]; !ok {
 				update["$set"] = bson.M{}
 			}
-			update["$set"].(bson.M)[toDot(patch.Path)] = *patch.Value
+			update["$set"].(bson.M)[prefixPath+toDot(patch.Path)] = *patch.Value
 
 		// the test op does not change the query
 		case "test":
