@@ -6,7 +6,7 @@ import (
 )
 
 func TestParsePatches(t *testing.T) {
-	want := "map[$push:map[hello.0.hi:map[$each:[4 3 2 1] $position:5]]]"
+	want := "map[$push:map[hello.0.hi:map[$each:[4 3 2 1] $position:5]] $set:map[hello.0.hi.num:4]]"
 
 	patches := []byte(`[
   		{ "op": "add", "path": "/hello/0/hi/5", "value": 1 },

@@ -72,10 +72,6 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 		switch patch.Op {
 		// parse the add op as a push to the array in the corresponding location
 		case "add":
-			if _, ok := update["$push"]; !ok {
-				update["$push"] = bson.M{}
-			}
-
 			// parse path dividing key of the array and location inside the array
 			path := prefixPath + toDot(patch.Path)
 			parts := strings.Split(path, ".")
@@ -91,6 +87,9 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 			key := strings.Join(parts[0:len(parts)-1], ".")
 
 			if addToEnd {
+				if _, ok := update["$push"]; !ok {
+					update["$push"] = bson.M{}
+				}
 				// handle appends to the end of the array
 				if _, ok := update["$push"].(bson.M)[key]; ok {
 					// another add operation to this same array has been parsed
@@ -135,6 +134,9 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 					}
 					update["$set"].(bson.M)[prefixPath+toDot(patch.Path)] = *patch.Value
 				} else {
+					if _, ok := update["$push"]; !ok {
+						update["$push"] = bson.M{}
+					}
 
 					position := i1
 
