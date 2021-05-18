@@ -130,45 +130,50 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 			} else {
 				i1, err := strconv.Atoi(positionPart)
 				if err != nil {
-					return nil, err
-				}
-				position := i1
-
-				if _, ok := update["$push"].(bson.M)[key]; ok {
-					// Return error if previous operations added to the end of the array
-					if update["$push"].(bson.M)[key] == nil || fmt.Sprintf("%T", update["$push"].(bson.M)[key]) != "primitive.M" {
-						return nil, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
-					} else if _, ok := update["$push"].(bson.M)[key].(bson.M)["$position"]; !ok {
-						return nil, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
+					if _, ok := update["$set"]; !ok {
+						update["$set"] = bson.M{}
 					}
-
-					// The items inserted must be in contigous positions
-					posDiff := position - update["$push"].(bson.M)[key].(bson.M)["$position"].(int)
-					if posDiff > len(update["$push"].(bson.M)[key].(bson.M)["$each"].(primitive.A)) {
-						return nil, fmt.Errorf("Unsupported Operation! can use add op only with contiguous positions")
-					}
-
-					// current list of items to push and value to push
-					currEach := update["$push"].(bson.M)[key].(bson.M)["$each"].(bson.A)
-					var val interface{} = nil
-					if patch.Value != nil {
-						val = *patch.Value
-					}
-
-					// insert val in currEach in the right position
-					newEach := append(currEach, nil)
-					copy(newEach[posDiff+1:], newEach[posDiff:])
-					newEach[posDiff] = val
-					update["$push"].(bson.M)[key].(bson.M)["$each"] = newEach
-
-					update["$push"].(bson.M)[key].(bson.M)["$position"] = min(position, update["$push"].(bson.M)[key].(bson.M)["$position"].(int))
+					update["$set"].(bson.M)[prefixPath+toDot(patch.Path)] = *patch.Value
 				} else {
-					val := bson.A{nil}
-					if patch.Value != nil {
-						val = bson.A{*patch.Value}
-					}
 
-					update["$push"].(bson.M)[key] = bson.M{"$each": val, "$position": position}
+					position := i1
+
+					if _, ok := update["$push"].(bson.M)[key]; ok {
+						// Return error if previous operations added to the end of the array
+						if update["$push"].(bson.M)[key] == nil || fmt.Sprintf("%T", update["$push"].(bson.M)[key]) != "primitive.M" {
+							return nil, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
+						} else if _, ok := update["$push"].(bson.M)[key].(bson.M)["$position"]; !ok {
+							return nil, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
+						}
+
+						// The items inserted must be in contigous positions
+						posDiff := position - update["$push"].(bson.M)[key].(bson.M)["$position"].(int)
+						if posDiff > len(update["$push"].(bson.M)[key].(bson.M)["$each"].(primitive.A)) {
+							return nil, fmt.Errorf("Unsupported Operation! can use add op only with contiguous positions")
+						}
+
+						// current list of items to push and value to push
+						currEach := update["$push"].(bson.M)[key].(bson.M)["$each"].(bson.A)
+						var val interface{} = nil
+						if patch.Value != nil {
+							val = *patch.Value
+						}
+
+						// insert val in currEach in the right position
+						newEach := append(currEach, nil)
+						copy(newEach[posDiff+1:], newEach[posDiff:])
+						newEach[posDiff] = val
+						update["$push"].(bson.M)[key].(bson.M)["$each"] = newEach
+
+						update["$push"].(bson.M)[key].(bson.M)["$position"] = min(position, update["$push"].(bson.M)[key].(bson.M)["$position"].(int))
+					} else {
+						val := bson.A{nil}
+						if patch.Value != nil {
+							val = bson.A{*patch.Value}
+						}
+
+						update["$push"].(bson.M)[key] = bson.M{"$each": val, "$position": position}
+					}
 				}
 			}
 

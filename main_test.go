@@ -12,7 +12,8 @@ func TestParsePatches(t *testing.T) {
   		{ "op": "add", "path": "/hello/0/hi/5", "value": 1 },
   		{ "op": "add", "path": "/hello/0/hi/5", "value": 2 },
   		{ "op": "add", "path": "/hello/0/hi/5", "value": 3 },
-  		{ "op": "add", "path": "/hello/0/hi/5", "value": 4 }
+  		{ "op": "add", "path": "/hello/0/hi/5", "value": 4 },
+  		{ "op": "add", "path": "/hello/0/hi/num", "value": 4 }
 	]`)
 	val, err := ParsePatches(patches)
 	valStr := fmt.Sprint(val)
