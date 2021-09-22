@@ -15,12 +15,18 @@ import (
 
 func main() {
 	patches := []byte(`[
-  		{ "op": "add", "path": "/hello/0/hi/5", "value": 1 },
-  		{ "op": "add", "path": "/hello/0/hi/5", "value": 2 },
-  		{ "op": "add", "path": "/hello/0/hi/5", "value": 3 },
-  		{ "op": "add", "path": "/hello/0/hi/5", "value": 4 }
+  		{ "op": "remove", "path": "/hello/0/hi/5", "value": 1 }
 	]`)
-	fmt.Println(ParsePatches(patches))
+	mongoPatches, err := ParsePatches(patches)
+	if err != nil {
+		panic(err)
+	}
+
+	bytes, err := json.Marshal(mongoPatches)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bytes))
 }
 
 type patchesList []struct {
@@ -181,11 +187,48 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 
 		// parse remove op adding the removed path to the $unset query
 		case "remove":
-			if _, ok := update["$unset"]; !ok {
-				update["$unset"] = bson.M{}
+			path := prefixPath + toDot(patch.Path)
+			parts := strings.Split(path, ".")
+
+			isInArray := false
+			arrayPosition := 0
+			if len(parts) > 1 {
+				positionPart := parts[len(parts)-1]
+				pos, err := strconv.Atoi(positionPart)
+				if err == nil {
+					isInArray = true
+					arrayPosition = pos
+				}
 			}
 
-			update["$unset"].(bson.M)[prefixPath+toDot(patch.Path)] = 1
+			if isInArray {
+				if _, ok := update["$set"]; !ok {
+					update["$set"] = bson.M{}
+				}
+				arrayPath := strings.Join(parts[:len(parts)-1], ".")
+				update["$set"].(bson.M)[arrayPath] = bson.M{
+					"$concatArrays": bson.A{
+						bson.M{
+							"$slice": bson.A{
+								"$" + arrayPath, arrayPosition,
+							},
+						},
+						bson.M{
+							"$slice": bson.A{
+								"$" + arrayPath, arrayPosition + 1, bson.M{
+									"$size": "$" + arrayPath,
+								},
+							},
+						},
+					},
+				}
+			} else {
+				if _, ok := update["$unset"]; !ok {
+					update["$unset"] = bson.M{}
+				}
+
+				update["$unset"].(bson.M)[prefixPath+toDot(patch.Path)] = 1
+			}
 
 		// parse replace op adding the replaced path to the $set query with the correct value
 		case "replace":
