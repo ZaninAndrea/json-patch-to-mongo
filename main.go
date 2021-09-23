@@ -17,7 +17,7 @@ func main() {
 	patches := []byte(`[
   		{ "op": "remove", "path": "/hello/0/hi/5", "value": 1 }
 	]`)
-	mongoPatches, err := ParsePatches(patches)
+	mongoPatches, _, err := ParsePatches(patches)
 	if err != nil {
 		panic(err)
 	}
@@ -58,20 +58,21 @@ func min(a, b int) int {
 }
 
 // ParsePatches accepts the JSON Patches as []byte and returns the equivalent MongoDB update query as bson.M
-func ParsePatches(patches []byte) (bson.M, error) {
+func ParsePatches(patches []byte) (bson.M, bool, error) {
 	return ParsePatchesWithPrefix(patches, "")
 }
 
 // ParsePatchesWithPrefix accepts the JSON Patches as []byte and returns the equivalent MongoDB update query as bson.M, all the paths are prepended with the prefix passed
-func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
+func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, bool, error) {
 	// parse patches json
 	var parsedPatches patchesList
 	err := json.Unmarshal(patches, &parsedPatches)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	update := bson.M{}
+	shouldAggregate := false
 
 	// iterate patches and add each operation to update query
 	for _, patch := range parsedPatches {
@@ -86,7 +87,7 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 			if len(parts) > 1 {
 				positionPart = parts[len(parts)-1]
 			} else {
-				return nil, fmt.Errorf("Unsupported Operation! can't use add op without position")
+				return nil, false, fmt.Errorf("Unsupported Operation! can't use add op without position")
 			}
 
 			addToEnd := positionPart == "-"
@@ -113,7 +114,7 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 
 					// adding both to specific locations and to the end of the array is not supported
 					if _, ok := update["$push"].(bson.M)[key].(bson.M)["$position"]; ok {
-						return nil, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
+						return nil, false, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
 					}
 
 					// add the value passed to the list of the values to be pushed
@@ -149,15 +150,15 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 					if _, ok := update["$push"].(bson.M)[key]; ok {
 						// Return error if previous operations added to the end of the array
 						if update["$push"].(bson.M)[key] == nil || fmt.Sprintf("%T", update["$push"].(bson.M)[key]) != "primitive.M" {
-							return nil, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
+							return nil, false, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
 						} else if _, ok := update["$push"].(bson.M)[key].(bson.M)["$position"]; !ok {
-							return nil, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
+							return nil, false, fmt.Errorf("Unsupported Operation! can't use add op with mixed positions")
 						}
 
 						// The items inserted must be in contigous positions
 						posDiff := position - update["$push"].(bson.M)[key].(bson.M)["$position"].(int)
 						if posDiff > len(update["$push"].(bson.M)[key].(bson.M)["$each"].(primitive.A)) {
-							return nil, fmt.Errorf("Unsupported Operation! can use add op only with contiguous positions")
+							return nil, false, fmt.Errorf("Unsupported Operation! can use add op only with contiguous positions")
 						}
 
 						// current list of items to push and value to push
@@ -222,6 +223,7 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 						},
 					},
 				}
+				shouldAggregate = true
 			} else {
 				if _, ok := update["$unset"]; !ok {
 					update["$unset"] = bson.M{}
@@ -241,9 +243,9 @@ func ParsePatchesWithPrefix(patches []byte, prefixPath string) (bson.M, error) {
 		case "test":
 
 		default:
-			return nil, fmt.Errorf("Unsupported Operation! op = " + patch.Op)
+			return nil, false, fmt.Errorf("Unsupported Operation! op = " + patch.Op)
 		}
 	}
 
-	return update, nil
+	return update, shouldAggregate, nil
 }
